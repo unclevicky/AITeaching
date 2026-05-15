@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+test.pcm
+.claude/
+.superpowers/
+start_longcat.bat
+logs/
