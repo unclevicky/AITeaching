@@ -8,3 +8,5 @@ test.pcm
 .superpowers/
 start_longcat.bat
 logs/
+src/assets/movie/
+src/assets/audio/
