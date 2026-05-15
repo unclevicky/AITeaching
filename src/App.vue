@@ -56,7 +56,32 @@ const sttCallback = (text, isInterim) => {
     send(JSON.stringify({ type: 'user.text', text: trimmed }))
   }
 }
-const { start: startSTT, stop: stopSTT, isListening: isSTTListening, isSupported: isSTTSupported } = useSpeechRecognition(sttCallback)
+const { start: startSTT, stop: stopSTT, isListening: isSTTListening, isSupported: isSTTSupported, networkFailed: isSTTNetworkFailed } = useSpeechRecognition({
+  onResult: sttCallback,
+  onNetworkError: () => {
+    logWarn('[App] STT network failed, showing text input fallback')
+    showTextInput.value = true
+  }
+})
+
+// ── Text input fallback when STT is unavailable ──
+const textInput = ref('')
+const showTextInput = ref(false)
+
+const quickCommands = [
+  { label: '打开大屏', text: '打开大屏' },
+  { label: '开始诊断', text: '开始诊断' },
+  { label: '打开PPT', text: '打开PPT' },
+  { label: '开始测试', text: '开始测试' },
+]
+
+function handleTextSubmit() {
+  const text = textInput.value.trim()
+  if (!text) return
+  logInfo('[App] Text input submit:', text)
+  send(JSON.stringify({ type: 'user.text', text }))
+  textInput.value = ''
+}
 
 const showEnterModal = ref(true)
 
@@ -74,13 +99,11 @@ async function handleEnterSystem() {
 // ── Toggle microphone ──
 function toggleMic() {
   if (avatarStore.isMicActive) {
-    // 停止录音和识别
+    // 停止录音（关闭麦克风）
     stopRecording()
+    // 同时停止 STT — 用户主动结束输入
+    // 注意：如果 STT 已经 network failed，stopSTT 是 no-op（isListening 已经是 false）
     stopSTT()
-    // 停止后切回 IDLE（如果当前还在 LISTENING）
-    if (avatarStore.state === 'LISTENING') {
-      avatarStore.setState('IDLE')
-    }
   } else {
     if (!isConnected.value) {
       logWarn('[App] WebSocket not connected, reconnecting...')
@@ -90,8 +113,15 @@ function toggleMic() {
     // 开始录音 + STT，数字人切到 LISTENING
     avatarStore.setState('LISTENING')
     startRecording()
-    if (isSTTSupported.value) {
-      startSTT()
+    if (isSTTSupported.value && !isSTTNetworkFailed.value) {
+      const started = startSTT()
+      if (!started) {
+        logWarn('[App] STT start failed, switching to text input')
+        showTextInput.value = true
+      }
+    } else if (isSTTNetworkFailed.value) {
+      logInfo('[App] STT network failed previously, showing text input')
+      showTextInput.value = true
     }
   }
 }
@@ -152,6 +182,50 @@ onUnmounted(() => {
 
     <GlobalAvatar @toggle-mic="toggleMic" />
 
+    <!-- Text input fallback: shown when Web Speech API is unavailable or network-failed -->
+    <Transition name="slide-up">
+      <div v-if="showTextInput && !showEnterModal"
+        class="fixed bottom-36 right-8 z-[9999] w-80">
+        <div class="glass-panel rounded-xl p-3 shadow-2xl">
+          <!-- Header -->
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-2 h-2 rounded-full" :class="isSTTNetworkFailed ? 'bg-amber-400' : 'bg-cyber-teal'"></div>
+            <span class="text-xs text-dark-muted">
+              {{ isSTTNetworkFailed ? '语音识别不可用，请输入文字' : '同时支持文字输入' }}
+            </span>
+            <button @click="showTextInput = false" class="ml-auto text-dark-muted hover:text-white transition-colors">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <!-- Input area -->
+          <form @submit.prevent="handleTextSubmit" class="flex gap-2">
+            <input
+              v-model="textInput"
+              type="text"
+              placeholder="输入您想说的话..."
+              class="flex-1 bg-dark-bg/80 border border-dark-border/50 rounded-lg px-3 py-2 text-sm text-white placeholder-dark-muted focus:outline-none focus:border-cyber-teal/50 transition-colors"
+            />
+            <button
+              type="submit"
+              class="px-4 py-2 bg-cyber-teal/20 hover:bg-cyber-teal/30 text-cyber-teal rounded-lg text-sm font-medium transition-colors"
+            >
+              发送
+            </button>
+          </form>
+          <!-- Quick commands -->
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <button v-for="cmd in quickCommands" :key="cmd.text"
+              @click="textInput = cmd.text; handleTextSubmit()"
+              class="px-2 py-1 text-xs rounded-md bg-dark-surface/60 text-dark-muted hover:text-cyber-teal hover:bg-dark-surface transition-colors">
+              {{ cmd.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <EnterSystemModal v-if="showEnterModal" @enter="handleEnterSystem" />
   </div>
 </template>
@@ -168,5 +242,18 @@ onUnmounted(() => {
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 </style>

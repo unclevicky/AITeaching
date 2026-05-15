@@ -29,14 +29,20 @@ const logError = (...args) => {
  * Composable for browser-native speech recognition (Web Speech API)
  * Used as local STT to convert user's speech to text without MiniMax API
  *
- * @param {Function} onResult - Callback when transcription is complete (receives text)
+ * @param {Object} options
+ * @param {Function} options.onResult - Callback when transcription is complete (receives text, isInterim)
+ * @param {Function} options.onNetworkError - Callback when STT network fails (STT unusable)
  */
-export function useSpeechRecognition(onResult) {
+export function useSpeechRecognition(options = {}) {
+  const { onResult, onNetworkError } = options
   const avatarStore = useAvatarStore()
 
   let recognition = null
   let isListening = ref(false)
   let isSupported = ref(false)
+  let consecutiveErrors = 0
+  const MAX_CONSECUTIVE_ERRORS = 3
+  let networkFailed = ref(false)
 
   // Check browser support
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -44,27 +50,19 @@ export function useSpeechRecognition(onResult) {
     isSupported.value = true
   }
 
-  /**
-   * Initialize speech recognition
-   */
-  function init() {
-    if (!isSupported.value) {
-      logWarn('[SpeechRecognition] Web Speech API not supported in this browser')
-      return false
-    }
+  function createRecognition() {
+    const rec = new SpeechRecognition()
+    rec.lang = 'zh-CN'
+    rec.continuous = false
+    rec.interimResults = true
+    rec.maxAlternatives = 1
 
-    recognition = new SpeechRecognition()
-    recognition.lang = 'zh-CN'
-    recognition.continuous = false
-    recognition.interimResults = true
-    recognition.maxAlternatives = 1
-
-    recognition.onstart = () => {
+    rec.onstart = () => {
       isListening.value = true
       logInfo('[SpeechRecognition] Started listening')
     }
 
-    recognition.onresult = (event) => {
+    rec.onresult = (event) => {
       let finalTranscript = ''
       let interimTranscript = ''
 
@@ -78,6 +76,8 @@ export function useSpeechRecognition(onResult) {
       }
 
       if (finalTranscript) {
+        consecutiveErrors = 0  // reset on success
+        networkFailed.value = false
         logInfo('[SpeechRecognition] Final result:', finalTranscript)
         onResult?.(finalTranscript, false)
       } else if (interimTranscript) {
@@ -86,22 +86,45 @@ export function useSpeechRecognition(onResult) {
       }
     }
 
-    recognition.onerror = (event) => {
+    rec.onerror = (event) => {
       logWarn('[SpeechRecognition] Error:', event.error)
       isListening.value = false
 
-      if (event.error === 'no-speech') {
+      if (event.error === 'network') {
+        consecutiveErrors++
+        if (!networkFailed.value) {
+          networkFailed.value = true
+          logWarn('[SpeechRecognition] Network error — Web Speech API unreachable')
+          // Immediately notify caller so UI can react (show text input etc.)
+          onNetworkError?.()
+        }
+      } else if (event.error === 'no-speech') {
         logInfo('[SpeechRecognition] No speech detected')
       } else if (event.error === 'not-allowed') {
         logWarn('[SpeechRecognition] Microphone permission denied')
+      } else if (event.error === 'aborted') {
+        logInfo('[SpeechRecognition] Aborted')
       }
     }
 
-    recognition.onend = () => {
+    rec.onend = () => {
       isListening.value = false
       logInfo('[SpeechRecognition] Stopped listening')
     }
 
+    return rec
+  }
+
+  /**
+   * Initialize speech recognition
+   */
+  function init() {
+    if (!isSupported.value) {
+      logWarn('[SpeechRecognition] Web Speech API not supported in this browser')
+      return false
+    }
+
+    recognition = createRecognition()
     return true
   }
 
@@ -109,6 +132,12 @@ export function useSpeechRecognition(onResult) {
    * Start listening
    */
   function start() {
+    // If STT has failed too many times, don't try again
+    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+      logWarn('[SpeechRecognition] Too many consecutive errors, STT disabled')
+      return false
+    }
+
     if (!recognition) {
       if (!init()) return false
     }
@@ -117,6 +146,15 @@ export function useSpeechRecognition(onResult) {
       logInfo('[SpeechRecognition] Already listening')
       return true
     }
+
+    // Recreate recognition each time to avoid stale state
+    if (recognition) {
+      recognition.onstart = null
+      recognition.onresult = null
+      recognition.onerror = null
+      recognition.onend = null
+    }
+    recognition = createRecognition()
 
     try {
       recognition.start()
@@ -165,6 +203,7 @@ export function useSpeechRecognition(onResult) {
     stop,
     abort,
     isListening,
-    isSupported
+    isSupported,
+    networkFailed
   }
 }
