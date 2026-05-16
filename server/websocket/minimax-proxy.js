@@ -405,7 +405,7 @@ export function handleMiniMaxProxy(clientWs) {
       return '好的，已为您打开诊断工作台。'
     }
     if (lower.includes('ppt') || lower.includes('幻灯片')) {
-      return '好的，已为您进入演示模式。'
+      return '好的，已为您打开PPT演示。'
     }
     if (lower.includes('测试') || lower.includes('考核')) {
       return '好的，已为您启动考核模块。'

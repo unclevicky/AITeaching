@@ -41,6 +41,7 @@ export function useAudioRecorder(getSocket) {
   let audioContext = null
   let mediaStream = null
   let processor = null
+  let workletRegistered = false
 
   const isInitialized = ref(false)
 
@@ -148,24 +149,27 @@ export function useAudioRecorder(getSocket) {
   }
 
   async function initAudioWorklet(source) {
-    const workletCode = `
-      class AudioProcessor extends AudioWorkletProcessor {
-        process(inputs) {
-          const input = inputs[0]
-          if (input.length > 0) {
-            this.port.postMessage(input[0])
-          }
-          return true
-        }
-      }
-      registerProcessor('audio-recorder', AudioProcessor)
-    `
-
-    const blob = new Blob([workletCode], { type: 'application/javascript' })
-    const workletUrl = URL.createObjectURL(blob)
-
     try {
-      await audioContext.audioWorklet.addModule(workletUrl)
+      if (!workletRegistered) {
+        const workletCode = `
+          class AudioProcessor extends AudioWorkletProcessor {
+            process(inputs) {
+              const input = inputs[0]
+              if (input.length > 0) {
+                this.port.postMessage(input[0])
+              }
+              return true
+            }
+          }
+          registerProcessor('audio-recorder', AudioProcessor)
+        `
+        const blob = new Blob([workletCode], { type: 'application/javascript' })
+        const workletUrl = URL.createObjectURL(blob)
+        await audioContext.audioWorklet.addModule(workletUrl)
+        URL.revokeObjectURL(workletUrl)
+        workletRegistered = true
+      }
+
       const workletNode = new AudioWorkletNode(audioContext, 'audio-recorder')
 
       workletNode.port.onmessage = (e) => {
@@ -195,14 +199,13 @@ export function useAudioRecorder(getSocket) {
     } catch (err) {
       logWarn('[AudioRecorder] AudioWorklet failed, falling back:', err)
       initScriptProcessor(source)
-    } finally {
-      URL.revokeObjectURL(workletUrl)
     }
   }
 
   function stopRecording() {
     if (processor) {
       try { processor.disconnect() } catch {}
+      try { processor.port?.close() } catch {}
       processor = null
     }
     audioStore.setRecording(false)

@@ -44,72 +44,52 @@ function handleAvatarClick() {
       {{ statusText }}
     </div>
 
-    <!-- Avatar Body — 3D holographic style -->
+    <!-- Avatar Body — circular holographic style -->
     <div class="avatar-body relative cursor-pointer group"
       @click="handleAvatarClick">
 
       <!-- Outer glow ring (pulsing when active) -->
       <div class="absolute -inset-3 rounded-full transition-all duration-500"
         :class="{
-          'opacity-0 group-hover:opacity-40': avatarStore.isIdle,
-          'opacity-60 animate-pulse': avatarStore.isListening || avatarStore.isSpeaking
+          'opacity-0 group-hover:opacity-50': avatarStore.isIdle,
+          'opacity-80 animate-pulse': avatarStore.isListening || avatarStore.isSpeaking
         }"
         :style="{
           background: avatarStore.isListening
-            ? 'radial-gradient(circle, rgba(0,204,170,0.4) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(0,212,255,0.4) 0%, transparent 70%)'
+            ? 'radial-gradient(circle, rgba(0,204,170,0.55) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(0,212,255,0.55) 0%, transparent 70%)'
         }">
       </div>
 
-      <!-- Rotating border ring (slow spin when speaking) -->
+      <!-- Rotating border ring (slow spin when active) -->
       <div class="absolute -inset-2 rounded-full border border-dashed transition-all duration-500"
         :class="{
-          'border-dark-border/30': avatarStore.isIdle,
-          'border-cyber-teal/40 animate-[spin_8s_linear_infinite]': avatarStore.isListening,
-          'border-cyber-cyan/50 animate-[spin_4s_linear_infinite]': avatarStore.isSpeaking
+          'border-cyber-cyan/30': avatarStore.isIdle,
+          'border-cyber-teal/60 animate-[spin_8s_linear_infinite]': avatarStore.isListening,
+          'border-cyber-cyan/70 animate-[spin_4s_linear_infinite]': avatarStore.isSpeaking
         }">
       </div>
 
-      <!-- Main avatar container — glass card with depth -->
-      <div class="relative w-28 h-28 rounded-2xl overflow-hidden glass-panel shadow-2xl
-                  transition-all duration-300 group-hover:scale-105 group-hover:shadow-cyber-cyan/20"
-        :style="{
-          transform: avatarStore.isListening ? 'perspective(600px) rotateY(-3deg)'
-                   : avatarStore.isSpeaking ? 'perspective(600px) rotateY(3deg)'
-                   : 'perspective(600px) rotateY(0deg)'
-        }">
+      <!-- Main circular avatar container -->
+      <div class="relative w-28 h-28 rounded-full overflow-hidden bg-dark-bg
+                  transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_30px_rgba(0,212,255,0.3)]">
 
-        <!-- Inner dark background -->
-        <div class="absolute inset-0 bg-gradient-to-br from-dark-surface/90 to-dark-bg/95"></div>
-
-        <!-- Video player -->
-        <div class="absolute inset-0 flex items-center justify-center p-2">
-          <VideoPlayer :state="avatarStore.state" />
-        </div>
+        <!-- Video player fills the circle -->
+        <VideoPlayer :state="avatarStore.state" />
 
         <!-- Scan line effect (when not idle) -->
         <div v-if="!avatarStore.isIdle"
           class="scan-line absolute inset-0 pointer-events-none z-10">
         </div>
-
-        <!-- Corner accents -->
-        <div class="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 rounded-tl-lg transition-colors duration-300"
-          :class="avatarStore.isIdle ? 'border-dark-border/50' : 'border-cyber-cyan/60'"></div>
-        <div class="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 rounded-tr-lg transition-colors duration-300"
-          :class="avatarStore.isIdle ? 'border-dark-border/50' : 'border-cyber-cyan/60'"></div>
-        <div class="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 rounded-bl-lg transition-colors duration-300"
-          :class="avatarStore.isIdle ? 'border-dark-border/50' : 'border-cyber-cyan/60'"></div>
-        <div class="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 rounded-br-lg transition-colors duration-300"
-          :class="avatarStore.isIdle ? 'border-dark-border/50' : 'border-cyber-cyan/60'"></div>
       </div>
 
       <!-- Speaking indicator rings -->
       <div v-if="avatarStore.isSpeaking"
-        class="absolute -inset-4 rounded-2xl border-2 border-cyber-cyan/30 animate-ping pointer-events-none">
+        class="absolute -inset-4 rounded-full border-2 border-cyber-cyan/50 animate-ping pointer-events-none">
       </div>
 
-      <!-- Bottom platform shadow -->
-      <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-20 h-2 rounded-full bg-cyber-cyan/20 blur-md"></div>
+      <!-- Bottom platform glow -->
+      <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-3 rounded-full bg-cyber-cyan/30 blur-lg"></div>
     </div>
 
     <!-- Mic Button -->
@@ -119,32 +99,11 @@ function handleAvatarClick() {
 
 <style scoped>
 .global-avatar {
-  filter: drop-shadow(0 4px 30px rgba(0, 212, 255, 0.15));
+  filter: drop-shadow(0 4px 40px rgba(0, 212, 255, 0.25));
 }
 
 .avatar-body {
   perspective: 800px;
-}
-
-.avatar-body:active .glass-panel {
-  transform: scale(0.95) !important;
-}
-
-/* Glass panel effect */
-.glass-panel {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: linear-gradient(
-    135deg,
-    rgba(10, 20, 40, 0.8) 0%,
-    rgba(5, 15, 30, 0.9) 50%,
-    rgba(10, 25, 50, 0.8) 100%
-  );
-  border: 1px solid rgba(0, 212, 255, 0.15);
-  box-shadow:
-    0 0 40px rgba(0, 212, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Scan line animation */

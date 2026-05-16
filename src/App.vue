@@ -70,9 +70,13 @@ const showTextInput = ref(false)
 
 const quickCommands = [
   { label: '打开大屏', text: '打开大屏' },
+  { label: '实时监控', text: '实时监控' },
+  { label: '战创伤分析', text: '战创伤分析' },
   { label: '开始诊断', text: '开始诊断' },
   { label: '打开PPT', text: '打开PPT' },
   { label: '开始测试', text: '开始测试' },
+  { label: '胰腺损伤测验', text: '胰腺损伤测验' },
+  { label: '教学模拟', text: '教学模拟' },
 ]
 
 function handleTextSubmit() {
@@ -148,6 +152,18 @@ function handleKeydown(e) {
       break
     case 'Digit4':
       router.push('/exam')
+      break
+    case 'Digit5':
+      router.push('/realtime')
+      break
+    case 'Digit6':
+      router.push('/trauma')
+      break
+    case 'Digit7':
+      router.push('/pancreas-injury')
+      break
+    case 'Digit8':
+      router.push('/surgery-simulation')
       break
     case 'Escape':
       if (avatarStore.isMicActive) {

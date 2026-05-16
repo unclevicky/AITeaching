@@ -4,7 +4,7 @@ import { useQuizStore } from '@/stores/quiz'
 import * as echarts from 'echarts'
 
 const store = useQuizStore()
-const questions = store.pancreaticCancerQuestions
+const questions = store.pancreasInjuryQuestions
 const CHART_COLORS = ['#5470C6', '#91CC75', '#FAC858', '#EE6666']
 
 // ── Local state ──
@@ -20,80 +20,210 @@ let chart = null
 let timerHandle = null
 let countdownHandle = null
 
+const countdownSeconds = computed(() => {
+  return currentQIdx.value < 2 ? 3 : 10
+})
+
 const progressPercent = computed(() => (answeredCount.value / store.TOTAL_STUDENTS) * 100)
-const countdownProgress = computed(() => (secondsLeft.value / 3) * 100)
+const countdownProgress = computed(() => (secondsLeft.value / countdownSeconds.value) * 100)
 
 // ── Chart container ref ──
 const chartContainer = ref(null)
+
+function getChartType() {
+  const q = questions[currentQIdx.value]
+  if (!q) return 'pie'
+  if (q.isMultipleChoice || q.useBarChart) return 'bar'
+  return 'pie'
+}
 
 function initChart() {
   if (chart) chart.dispose()
   if (!chartContainer.value) return
   chart = echarts.init(chartContainer.value)
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      formatter: function (params) {
-        const data = params[0]
-        const percent = ((data.value / 20) * 100).toFixed(0)
-        return `${data.name}<br/>${data.value}人 (${percent}%)`
-      },
-    },
-    grid: { left: '3%', right: '15%', bottom: '3%', top: '3%', containLabel: true },
-    xAxis: {
-      type: 'value',
-      max: 20,
-      axisLabel: { formatter: '{value}人' },
-      splitLine: { lineStyle: { type: 'dashed', color: '#eee' } },
-    },
-    yAxis: {
-      type: 'category',
-      data: [],
-      axisLabel: { fontSize: 13, fontWeight: 600 },
-      axisLine: { show: false },
-      axisTick: { show: false },
-    },
-    series: [{
-      type: 'bar',
-      data: [],
-      barWidth: 24,
-      itemStyle: {
-        borderRadius: [0, 6, 6, 0],
-        color: function (params) {
-          return CHART_COLORS[params.dataIndex]
-        },
-      },
-      label: {
-        show: true,
-        position: 'right',
+  const type = getChartType()
+  const q = questions[currentQIdx.value]
+
+  let option
+  if (type === 'bar') {
+    option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
         formatter: function (params) {
-          const percent = ((params.value / 20) * 100).toFixed(0)
-          return params.value + '人 (' + percent + '%)'
+          const data = params[0]
+          return `${data.name}<br/>占比：${data.value}%`
         },
-        fontSize: 12,
-        fontWeight: 600,
-        color: '#333',
       },
-      animationDuration: 600,
-      animationEasing: 'cubicOut',
-    }],
+      grid: { left: '3%', right: '15%', bottom: '3%', top: '5%', containLabel: true },
+      xAxis: {
+        type: 'value',
+        axisLabel: { fontSize: 12, color: '#8ba2b8' },
+        splitLine: { lineStyle: { color: 'rgba(0,180,255,0.06)' } },
+      },
+      yAxis: {
+        type: 'category',
+        data: [],
+        axisLabel: { fontSize: 11, color: '#b0c4d8' },
+        axisLine: { lineStyle: { color: 'rgba(0,180,255,0.1)' } },
+      },
+      series: [{
+        type: 'bar',
+        data: [],
+        itemStyle: {
+          borderRadius: [0, 4, 4, 0],
+          color: function (params) {
+            if (q && q.isMultipleChoice) {
+              const correctKey = q.correctOptions.join(',')
+              return params.data.key === correctKey ? '#91CC75' : '#5470C6'
+            } else if (q && q.useBarChart) {
+              return params.data.isCorrect ? '#91CC75' : '#5470C6'
+            }
+            return '#5470C6'
+          },
+        },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: '{c}%',
+          fontSize: 11,
+          color: '#b0c4d8',
+        },
+        barWidth: '60%',
+        animationDuration: 500,
+      }],
+    }
+  } else {
+    option = {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}：{c} 人（{d}%）',
+      },
+      series: [{
+        type: 'pie',
+        radius: ['35%', '60%'],
+        center: ['40%', '50%'],
+        avoidLabelOverlap: true,
+        minAngle: 5,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: '#0a1628',
+          borderWidth: 2,
+        },
+        label: {
+          show: true,
+          position: 'outside',
+          formatter: function (params) {
+            const letter = params.name.split('.')[0].trim()
+            const count = params.value || 0
+            const percent = params.percent ? Math.round(params.percent) : 0
+            return letter + '\n' + count + '人 ' + percent + '%'
+          },
+          fontSize: 11,
+          color: '#b0c4d8',
+          fontWeight: 600,
+          lineHeight: 14,
+        },
+        labelLine: {
+          show: true,
+          length: 15,
+          length2: 25,
+        },
+        emphasis: {
+          scaleSize: 8,
+          label: { fontSize: 12, fontWeight: 'bold' },
+        },
+        animationType: 'scale',
+        animationEasing: 'cubicOut',
+        animationDuration: 400,
+        data: [],
+      }],
+    }
   }
-  chart.setOption(option)
+  chart.setOption(option, true)
 }
 
-function updateChart(counts, options) {
+function updatePieChart(counts, options) {
   const letters = ['A', 'B', 'C', 'D']
-  const indices = [0, 1, 2, 3].slice(0, options.length).reverse()
-  const yData = indices.map(i => letters[i] + '. ' + options[i])
-  const seriesData = indices.map(i => ({
-    value: counts[i],
-    itemStyle: { color: CHART_COLORS[i] },
-  }))
-  chart.setOption({
-    yAxis: { data: yData },
-    series: [{ data: seriesData }],
-  })
+  const data = options
+    .map((opt, i) => ({
+      value: counts[i] || 0,
+      name: `${letters[i]}. ${opt}`,
+      itemStyle: { color: CHART_COLORS[i] },
+    }))
+    .filter((d) => d.value > 0)
+  chart.setOption({ series: [{ data }] })
+}
+
+function updateBarChart(counts, question) {
+  const letters = ['A', 'B', 'C', 'D']
+
+  if (question.isMultipleChoice) {
+    const combinationCounts = {}
+    Object.entries(question.combinationWeights).forEach(([key, weight]) => {
+      const count = Math.round(weight * store.TOTAL_STUDENTS)
+      if (count > 0) {
+        const label = key.split(',').map(i => letters[parseInt(i)]).join('')
+        combinationCounts[label] = { count, key, percent: Math.round(weight * 100) }
+      }
+    })
+    const sortedData = Object.entries(combinationCounts).sort((a, b) => b[1].percent - a[1].percent)
+    const categories = sortedData.map(([label]) => label)
+    const data = sortedData.map(([, info]) => ({
+      value: info.percent,
+      key: info.key,
+      count: info.count,
+    }))
+    chart.setOption({
+      yAxis: { data: categories },
+      series: [{
+        data: data.map(d => ({ ...d, itemLabel: d.count + '人 (' + d.value + '%)' })),
+        label: {
+          show: true,
+          position: 'right',
+          formatter: function (p) { return p.data.itemLabel },
+          fontSize: 12,
+          color: '#b0c4d8',
+        },
+      }],
+    })
+  } else if (question.useBarChart) {
+    const categories = []
+    const data = []
+    for (let i = question.options.length - 1; i >= 0; i--) {
+      const weight = question.weights[i]
+      const count = Math.round(weight * store.TOTAL_STUDENTS)
+      const percent = Math.round(weight * 100)
+      categories.push(letters[i])
+      data.push({ value: percent, count, isCorrect: i === question.correctIndex })
+    }
+    chart.setOption({
+      yAxis: { data: categories },
+      series: [{
+        data: data.map(d => ({ ...d, itemLabel: d.count + '人 (' + d.value + '%)' })),
+        label: {
+          show: true,
+          position: 'right',
+          formatter: function (p) { return p.data.itemLabel },
+          fontSize: 12,
+          color: '#b0c4d8',
+        },
+      }],
+    })
+  }
+}
+
+function highlightCorrect() {
+  const q = questions[currentQIdx.value]
+  if (q.isMultipleChoice && q.correctOptions) {
+    q.correctOptions.forEach(idx => {
+      const el = document.getElementById(`option-${idx}`)
+      if (el) el.classList.add('correct')
+    })
+  } else {
+    const el = document.getElementById(`option-${q.correctIndex}`)
+    if (el) el.classList.add('correct')
+  }
 }
 
 function renderLegend(options) {
@@ -106,17 +236,15 @@ function renderLegend(options) {
     .join('')
 }
 
-// ── Fixed answer sequence generator ──
-function generateAnswerSequence(question, questionIndex) {
+function generateAnswerSequence(question) {
   const seq = []
-  if (questionIndex === 1) {
-    for (let i = 0; i < 11; i++) seq.push(0)
-    for (let i = 0; i < 9; i++) seq.push(1)
-  } else if (questionIndex === 2) {
-    for (let i = 0; i < 5; i++) seq.push(0)
-    for (let i = 0; i < 3; i++) seq.push(1)
-    for (let i = 0; i < 10; i++) seq.push(2)
-    for (let i = 0; i < 2; i++) seq.push(3)
+  if (question.isMultipleChoice && question.combinationWeights) {
+    Object.entries(question.combinationWeights).forEach(([key, weight]) => {
+      const count = Math.round(weight * store.TOTAL_STUDENTS)
+      for (let i = 0; i < count; i++) {
+        seq.push(key.split(',').map(Number))
+      }
+    })
   } else {
     for (let i = 0; i < store.TOTAL_STUDENTS; i++) {
       const r = Math.random()
@@ -127,32 +255,33 @@ function generateAnswerSequence(question, questionIndex) {
       }
     }
   }
-  // Shuffle
   return seq.sort(() => Math.random() - 0.5)
 }
 
 function showDetail(index) {
   currentQIdx.value = index
   const q = questions[index]
+  const cdSeconds = index < 2 ? 3 : 10
+
   currentView.value = 'detail'
-  secondsLeft.value = 3
+  secondsLeft.value = cdSeconds
   answeredCount.value = 0
   finalCounts.value = null
   showChart.value = false
 
   nextTick(() => {
     initChart()
-    startSimulation(q, index)
+    startSimulation(q, cdSeconds)
   })
 }
 
-function startSimulation(question, questionIndex) {
+function startSimulation(question, cdSeconds) {
   const counts = [0, 0, 0, 0]
   let answered = 0
-  secondsLeft.value = 3
+  secondsLeft.value = cdSeconds
   isSimulating.value = true
-  const intervalMs = (3 * 1000) / store.TOTAL_STUDENTS
-  const answerSequence = generateAnswerSequence(question, questionIndex)
+  const intervalMs = (cdSeconds * 1000) / store.TOTAL_STUDENTS
+  const answerSequence = generateAnswerSequence(question)
 
   countdownHandle = setInterval(() => {
     secondsLeft.value--
@@ -166,11 +295,24 @@ function startSimulation(question, questionIndex) {
       isSimulating.value = false
       finalCounts.value = counts
       showChart.value = true
-      if (chart) updateChart(counts, question.options)
+
+      const q = questions[currentQIdx.value]
+      if (q.isMultipleChoice || q.useBarChart) {
+        updateBarChart(counts, q)
+      } else {
+        updatePieChart(counts, q.options)
+      }
+      highlightCorrect()
       return
     }
-    const choice = answerSequence[answered]
-    counts[choice]++
+
+    if (question.isMultipleChoice && question.combinationWeights) {
+      const selectedOptions = answerSequence[answered]
+      selectedOptions.forEach(idx => { counts[idx]++ })
+    } else {
+      const choice = answerSequence[answered]
+      counts[choice]++
+    }
     answered++
     answeredCount.value = answered
   }, intervalMs)
@@ -190,10 +332,11 @@ function toggleResultsOverview() {
 function getResultsData() {
   return questions.map((q, idx) => {
     const counts = new Array(q.options.length).fill(0)
-    if (idx === 1) {
-      counts[0] = 11; counts[1] = 9
-    } else if (idx === 2) {
-      counts[0] = 5; counts[1] = 3; counts[2] = 10; counts[3] = 2
+    if (q.isMultipleChoice && q.combinationWeights) {
+      Object.entries(q.combinationWeights).forEach(([key, weight]) => {
+        const count = Math.round(weight * store.TOTAL_STUDENTS)
+        key.split(',').map(Number).forEach(i => { counts[i] += count })
+      })
     } else {
       for (let i = 0; i < store.TOTAL_STUDENTS; i++) {
         const r = Math.random()
@@ -206,6 +349,18 @@ function getResultsData() {
     }
     return { questionIdx: idx, counts, total: store.TOTAL_STUDENTS }
   })
+}
+
+function getCombinationResults(question) {
+  return Object.entries(question.combinationWeights)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, weight]) => ({
+      key,
+      label: key.split(',').map(i => ['A', 'B', 'C', 'D'][parseInt(i)]).join(''),
+      count: Math.round(weight * store.TOTAL_STUDENTS),
+      percent: Math.round(weight * 100),
+      isCorrect: key === question.correctOptions.join(','),
+    }))
 }
 
 onUnmounted(() => {
@@ -222,14 +377,14 @@ onUnmounted(() => {
       <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #5470c6, #91cc75); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 700; flex-shrink: 0;">Q</div>
       <div>
         <h1 style="font-size: 20px; font-weight: 700; color: #00d4ff; margin: 0;">课堂互动答题</h1>
-        <p style="font-size: 13px; color: #7a8ba6; margin: 2px 0 0;">胰腺癌专题 · 20人参与</p>
+        <p style="font-size: 13px; color: #7a8ba6; margin: 2px 0 0;">胰腺损伤专题 · 20人参与</p>
       </div>
     </div>
 
     <!-- List View -->
     <div v-if="currentView === 'list'">
       <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 22px; font-weight: 600; color: #e0e8f0; margin-bottom: 6px;">胰腺癌专题测验</h2>
+        <h2 style="font-size: 22px; font-weight: 600; color: #e0e8f0; margin-bottom: 6px;">胰腺损伤专题测验</h2>
         <p style="font-size: 14px; color: #7a8ba6;">共 {{ questions.length }} 道题目，点击查看答题详情与学生作答分布</p>
       </div>
 
@@ -258,23 +413,51 @@ onUnmounted(() => {
       <!-- Results Overview -->
       <div v-if="resultsOverviewVisible" class="results-overview">
         <h2>📊 答题结果概览</h2>
-        <div v-for="(r, idx) in getResultsData()" :key="idx" class="result-item">
-          <div class="result-title">题目 {{ idx + 1 }}: {{ questions[r.questionIdx].title }}</div>
-          <div class="result-bars">
-            <div v-for="(count, i) in r.counts" :key="i" class="result-bar">
-              <div class="result-bar-label">{{ ['A', 'B', 'C', 'D'][i] }}</div>
+        <div v-for="(q, idx) in questions" :key="idx" class="result-item">
+          <div class="result-title">题目 {{ idx + 1 }}: {{ q.title }}</div>
+
+          <!-- Multiple Choice: combination distribution -->
+          <div v-if="q.isMultipleChoice" class="result-combo">
+            <div v-for="combo in getCombinationResults(q)" :key="combo.key" class="result-bar">
+              <div class="result-bar-label" :style="{ color: combo.isCorrect ? '#91CC75' : '#8ba2b8' }">
+                {{ combo.label }} <span v-if="combo.isCorrect">✓</span>
+              </div>
               <div class="result-bar-track">
-                <div
-                  class="result-bar-fill"
-                  :style="{
-                    width: (count / r.total) * 100 + '%',
-                    background: CHART_COLORS[i],
-                  }"
-                >
-                  <span v-if="count / r.total > 0.15" class="result-bar-text">{{ ((count / r.total) * 100).toFixed(1) }}%</span>
+                <div class="result-bar-fill" :style="{ width: combo.percent + '%', background: combo.isCorrect ? '#91CC75' : '#5470C6' }">
+                  <span v-if="combo.percent > 15" class="result-bar-text">{{ combo.percent }}%</span>
                 </div>
               </div>
-              <div class="result-bar-count">{{ count }}人</div>
+              <div class="result-bar-count">{{ combo.count }}人</div>
+            </div>
+          </div>
+
+          <!-- Bar Chart single choice -->
+          <div v-else-if="q.useBarChart" class="result-bars">
+            <div v-for="(opt, i) in q.options" :key="i" class="result-bar">
+              <div class="result-bar-label" :style="{ color: i === q.correctIndex ? '#91CC75' : '#8ba2b8' }">
+                {{ ['A', 'B', 'C', 'D'][i] }} <span v-if="i === q.correctIndex">✓</span>
+              </div>
+              <div class="result-bar-track">
+                <div class="result-bar-fill" :style="{ width: (q.weights[i] * 100) + '%', background: i === q.correctIndex ? '#91CC75' : CHART_COLORS[i] }">
+                  <span v-if="q.weights[i] > 0.15" class="result-bar-text">{{ Math.round(q.weights[i] * 100) }}%</span>
+                </div>
+              </div>
+              <div class="result-bar-count">{{ Math.round(q.weights[i] * 20) }}人</div>
+            </div>
+          </div>
+
+          <!-- Regular single choice -->
+          <div v-else class="result-bars">
+            <div v-for="(opt, i) in q.options" :key="i" class="result-bar">
+              <div class="result-bar-label" :style="{ color: i === q.correctIndex ? '#91CC75' : '#8ba2b8' }">
+                {{ ['A', 'B', 'C', 'D'][i] }} <span v-if="i === q.correctIndex">✓</span>
+              </div>
+              <div class="result-bar-track">
+                <div class="result-bar-fill" :style="{ width: (q.weights[i] * 100) + '%', background: i === q.correctIndex ? '#91CC75' : CHART_COLORS[i] }">
+                  <span v-if="q.weights[i] > 0.15" class="result-bar-text">{{ Math.round(q.weights[i] * 100) }}%</span>
+                </div>
+              </div>
+              <div class="result-bar-count">{{ Math.round(q.weights[i] * 20) }}人</div>
             </div>
           </div>
         </div>
@@ -295,8 +478,8 @@ onUnmounted(() => {
         <div class="detail-body">
           <!-- Left: Options -->
           <div class="detail-left">
-            <div class="options-title">选项</div>
-            <div v-for="(opt, i) in questions[currentQIdx].options" :key="i" class="option-item">
+            <div class="options-title">{{ questions[currentQIdx].isMultipleChoice ? '选项（多选）' : '选项' }}</div>
+            <div v-for="(opt, i) in questions[currentQIdx].options" :key="i" :id="'option-' + i" class="option-item">
               <div class="option-letter">{{ ['A', 'B', 'C', 'D'][i] }}</div>
               <div class="option-text">{{ opt }}</div>
             </div>
@@ -445,6 +628,18 @@ onUnmounted(() => {
   background: rgba(10, 22, 40, 0.5);
   transition: all 0.3s;
 }
+.option-item.correct {
+  border-color: #91cc75;
+  background: rgba(145, 204, 117, 0.1);
+}
+.option-item.correct .option-letter {
+  background: #91cc75;
+  color: #fff;
+}
+.option-item.correct .option-text {
+  color: #91cc75;
+  font-weight: 500;
+}
 
 .option-letter {
   width: 32px;
@@ -526,7 +721,7 @@ onUnmounted(() => {
 
 .chart-container {
   width: 360px;
-  height: 240px;
+  height: 360px;
   display: none;
 }
 .chart-container.show { display: block; }
@@ -534,10 +729,9 @@ onUnmounted(() => {
 .chart-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  margin-top: 8px;
+  gap: 8px 16px;
+  margin-top: 4px;
   justify-content: center;
-  max-width: 340px;
 }
 
 :deep(.legend-item) {
@@ -602,12 +796,12 @@ onUnmounted(() => {
 }
 
 .result-bars { display: flex; flex-direction: column; gap: 8px; }
+.result-combo { display: flex; flex-direction: column; gap: 8px; }
 
 .result-bar { display: flex; align-items: center; gap: 12px; }
 .result-bar-label {
-  width: 40px;
+  width: 60px;
   font-size: 13px;
-  color: #8ba2b8;
   font-weight: 500;
 }
 .result-bar-track {
@@ -634,7 +828,7 @@ onUnmounted(() => {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .result-bar-count {
-  width: 50px;
+  width: 60px;
   text-align: right;
   font-size: 13px;
   color: #7a8ba6;

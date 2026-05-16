@@ -11,6 +11,16 @@ const routes = [
     component: () => import('@/views/DashboardView.vue')
   },
   {
+    path: '/realtime',
+    name: 'RealtimeMonitoring',
+    component: () => import('@/views/RealtimeMonitorView.vue')
+  },
+  {
+    path: '/trauma',
+    name: 'TraumaAnalysis',
+    component: () => import('@/views/TraumaAnalysisView.vue')
+  },
+  {
     path: '/diagnosis',
     name: 'Diagnosis',
     component: () => import('@/views/DiagnosisView.vue')
@@ -24,6 +34,16 @@ const routes = [
     path: '/exam',
     name: 'Exam',
     component: () => import('@/views/ExamView.vue')
+  },
+  {
+    path: '/pancreas-injury',
+    name: 'PancreasInjuryQuiz',
+    component: () => import('@/views/PancreasInjuryQuizView.vue')
+  },
+  {
+    path: '/surgery-simulation',
+    name: 'SurgerySimulation',
+    component: () => import('@/views/SurgerySimulationView.vue')
   }
 ]
 
