@@ -39,15 +39,26 @@ const avatarStore = useAvatarStore()
 // ── WebSocket ──
 const { connect: connectWs, disconnect: disconnectWs, send, getSocket, isConnected, connectionStatus } = useWebSocket()
 
-// ── Audio Recorder (pass socket getter) ──
-const { init: initAudio, startRecording, stopRecording, dispose: disposeAudio } = useAudioRecorder(getSocket)
+// ── Audio Recorder (pass socket getter + audio data callback) ──
+const { init: initAudio, startRecording, stopRecording, dispose: disposeAudio } = useAudioRecorder(getSocket, {
+  onAudioData: (data) => {
+    pendingAudioData = data.audio
+    pendingSampleRate = data.sampleRate || 16000
+    logInfo('[App] 音频数据已准备，长度:', data.audio.length, '采样率:', pendingSampleRate)
+  }
+})
 
-// ── Speech Recognition (local Web Speech API for STT) ──
+// ── Speech Recognition (local Web Speech API for STT, with Baidu fallback) ──
 // Track last sent text to avoid duplicate sends from STT
 let lastSentText = ''
+let pendingAudioData = null // 存储录音数据，用于百度识别
+let pendingSampleRate = 16000 // 音频采样率，降采样后为 8000
+let sttSucceeded = false // 标记 Web Speech API 是否成功返回结果
+
 const sttCallback = (text, isInterim) => {
   logInfo('[App] STT result:', text, 'interim:', isInterim)
   if (!isInterim && text.trim()) {
+    sttSucceeded = true // 标记成功
     const trimmed = text.trim()
     // Dedup: skip if same as last sent
     if (trimmed === lastSentText) return
@@ -56,11 +67,22 @@ const sttCallback = (text, isInterim) => {
     send(JSON.stringify({ type: 'user.text', text: trimmed }))
   }
 }
-const { start: startSTT, stop: stopSTT, isListening: isSTTListening, isSupported: isSTTSupported, networkFailed: isSTTNetworkFailed } = useSpeechRecognition({
+const { start: startSTT, stop: stopSTT, isListening: isSTTListening, isSupported: isSTTSupported, networkFailed: isSTTNetworkFailed, baiduConfigured, recognizeWithBaidu, useBaiduFallback } = useSpeechRecognition({
   onResult: sttCallback,
   onNetworkError: () => {
-    logWarn('[App] STT network failed, showing text input fallback')
-    showTextInput.value = true
+    logWarn('[App] STT network failed')
+    // 如果百度已配置，不显示文字输入，等待录音结束后用百度识别
+    if (!baiduConfigured.value) {
+      logWarn('[App] 百度未配置，显示文字输入 fallback')
+      showTextInput.value = true
+    } else {
+      logInfo('[App] 百度已配置，将在录音结束后自动识别')
+    }
+  },
+  onAudioData: (audioData) => {
+    // 保存音频数据，录音停止后使用百度识别
+    pendingAudioData = audioData
+    logInfo('[App] 音频数据已保存，长度:', audioData.length)
   }
 })
 
@@ -108,7 +130,31 @@ function toggleMic() {
     // 同时停止 STT — 用户主动结束输入
     // 注意：如果 STT 已经 network failed，stopSTT 是 no-op（isListening 已经是 false）
     stopSTT()
+
+    // 延迟触发百度识别，等待 Web Speech API 的 error/result 回调完成
+    // 如果 Web Speech API 已成功返回结果（sttSucceeded=true），就不再调用百度
+    const audioDataSnapshot = pendingAudioData
+    const srSnapshot = pendingSampleRate
+    const sttSucceededSnapshot = sttSucceeded
+    logInfo('[App] 设置百度识别定时器, pendingAudioData:', audioDataSnapshot ? audioDataSnapshot.length : null, 'sampleRate:', srSnapshot, 'sttSucceeded:', sttSucceededSnapshot)
+    setTimeout(() => {
+      logInfo('[App] 百度识别定时器触发, baiduConfigured:', baiduConfigured.value, 'hasAudioData:', !!audioDataSnapshot, 'sttSucceeded:', sttSucceeded)
+      if (baiduConfigured.value && audioDataSnapshot && !sttSucceeded) {
+        logInfo('[App] Web Speech API 未返回结果，使用百度语音识别...')
+        recognizeWithBaidu(audioDataSnapshot, srSnapshot)
+      } else {
+        logInfo('[App] 跳过百度识别, 原因:', !baiduConfigured.value ? '百度未配置' : !audioDataSnapshot ? '无音频数据' : 'sttSucceeded=true')
+      }
+      // 重置标志，为下次录音做准备
+      sttSucceeded = false
+      pendingAudioData = null
+    }, 500)
   } else {
+    // 重置状态，准备新的录音
+    showTextInput.value = false
+    sttSucceeded = false  // 关键：在录音开始时重置
+    pendingAudioData = null
+
     if (!isConnected.value) {
       logWarn('[App] WebSocket not connected, reconnecting...')
       connectWs()
@@ -117,6 +163,8 @@ function toggleMic() {
     // 开始录音 + STT，数字人切到 LISTENING
     avatarStore.setState('LISTENING')
     startRecording()
+
+    // 优先使用 Web Speech API（本地，更快）
     if (isSTTSupported.value && !isSTTNetworkFailed.value) {
       const started = startSTT()
       if (!started) {
@@ -124,7 +172,19 @@ function toggleMic() {
         showTextInput.value = true
       }
     } else if (isSTTNetworkFailed.value) {
-      logInfo('[App] STT network failed previously, showing text input')
+      // Web Speech API 不可用，如果百度已配置则等待录音后用百度识别
+      if (baiduConfigured.value) {
+        logInfo('[App] Web Speech API 不可用，将使用百度语音识别')
+        // 清除文字输入，让用户专注于说话
+        showTextInput.value = false
+      } else {
+        logInfo('[App] STT network failed previously, showing text input')
+        showTextInput.value = true
+      }
+    } else if (!isSTTSupported.value && baiduConfigured.value) {
+      // 浏览器不支持 Web Speech API，使用百度
+      logInfo('[App] 浏览器不支持 Web Speech API，将使用百度语音识别')
+    } else {
       showTextInput.value = true
     }
   }

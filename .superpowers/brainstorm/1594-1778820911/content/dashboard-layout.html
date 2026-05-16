@@ -1,0 +1,78 @@
+<h2>Dashboard 首页布局</h2>
+<p class="subtitle">选择数字大屏首页的内容排布方式</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>数据卡片 + 地图</h3>
+      <p>顶部一排统计卡片（接诊量/诊断准确率等），中间左侧大区域放 ECharts 动态折线图，右侧放中国地图热力图。经典大屏布局。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>居中辐射式</h3>
+      <p>中央一个大型圆形数据仪表盘/雷达图，四周环绕 4-6 个小型数据卡片。视觉冲击力强，聚焦感好。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>网格数据墙</h3>
+      <p>等分网格布局，每个格子展示不同维度的数据（折线图/柱状图/饼图/数字翻牌器）。信息密度最高。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:2rem">
+  <div style="display:flex;gap:1rem;justify-content:center">
+    <div style="width:200px;height:130px;background:linear-gradient(135deg,#040d1a,#0c1929);border:1px solid #1a4a7a;border-radius:8px;padding:6px;position:relative;overflow:hidden">
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <div style="flex:1;height:20px;background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+        <div style="flex:1;height:20px;background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+        <div style="flex:1;height:20px;background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+      </div>
+      <div style="display:flex;gap:4px;height:calc(100% - 30px)">
+        <div style="flex:2;background:rgba(0,80,180,0.1);border:1px solid rgba(0,180,255,0.15);border-radius:4px;position:relative;overflow:hidden">
+          <svg width="100%" height="100%" viewBox="0 0 100 50" preserveAspectRatio="none">
+            <path d="M0,40 Q20,35 40,25 T80,15 T100,10" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.6"/>
+            <path d="M0,45 Q20,42 40,30 T80,22 T100,18" fill="none" stroke="#0066ff" stroke-width="1" opacity="0.3"/>
+          </svg>
+        </div>
+        <div style="flex:1;background:rgba(0,80,180,0.1);border:1px solid rgba(0,180,255,0.15);border-radius:4px;position:relative">
+          <div style="position:absolute;inset:4px;opacity:0.3;background:radial-gradient(circle at 60% 40%,#00d4ff,#003366);border-radius:50%"></div>
+        </div>
+      </div>
+      <div style="position:absolute;right:4px;bottom:4px;font-size:10px;color:#00d4ff;opacity:0.5">A</div>
+    </div>
+    <div style="width:200px;height:130px;background:linear-gradient(135deg,#040d1a,#0c1929);border:1px solid #1a4a7a;border-radius:8px;padding:6px;position:relative;overflow:hidden">
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        <div style="width:calc(50% - 2px);height:36px;background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+        <div style="width:calc(50% - 2px);height:36px;background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+        <div style="width:100%;height:52px;background:rgba(0,80,180,0.1);border:1px solid rgba(0,180,255,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center">
+          <div style="width:36px;height:36px;border-radius:50%;border:2px solid rgba(0,180,255,0.3);background:conic-gradient(from 0deg,rgba(0,180,255,0.4),rgba(0,80,200,0.1),rgba(0,180,255,0.4))"></div>
+        </div>
+        <div style="width:calc(50% - 2px);height:36px;background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+        <div style="width:calc(50% - 2px);height:36px;background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+      </div>
+      <div style="position:absolute;right:4px;bottom:4px;font-size:10px;color:#00d4ff;opacity:0.5">B</div>
+    </div>
+    <div style="width:200px;height:130px;background:linear-gradient(135deg,#040d1a,#0c1929);border:1px solid #1a4a7a;border-radius:8px;padding:6px;position:relative;overflow:hidden">
+      <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr 1fr;gap:4px;height:100%">
+        <div style="background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px;grid-row:span 2;position:relative;overflow:hidden">
+          <svg width="100%" height="100%" viewBox="0 0 80 80" preserveAspectRatio="none">
+            <path d="M0,60 Q20,50 40,30 T80,20" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.5"/>
+          </svg>
+        </div>
+        <div style="background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px"></div>
+        <div style="background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px;position:relative">
+          <div style="position:absolute;inset:6px;border-radius:50%;background:conic-gradient(#00d4ff 60%,rgba(0,80,200,0.2) 60%)"></div>
+        </div>
+        <div style="background:rgba(0,100,200,0.15);border:1px solid rgba(0,180,255,0.2);border-radius:4px;grid-column:span 2"></div>
+      </div>
+      <div style="position:absolute;right:4px;bottom:4px;font-size:10px;color:#00d4ff;opacity:0.5">C</div>
+    </div>
+  </div>
+  <p style="text-align:center;margin-top:8px;font-size:13px;color:#8899aa">A: 卡片+地图 | B: 居中辐射 | C: 网格数据墙</p>
+</div>

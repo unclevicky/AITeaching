@@ -278,7 +278,16 @@ export function handleMiniMaxProxy(clientWs) {
       sendToClient({ type: 'user.text', text: userText })
       logInfo(`[BFF]   → sent user.text to frontend`)
 
-      // Step 1: Check for pre-recorded audio clip
+      // Step 1: Detect intent from user text (before generating reply)
+      const intent = detectIntent(userText)
+      if (intent) {
+        logInfo(`[BFF]   🎯 Intent detected: ${intent.command} -> ${intent.target}`)
+        sendCommand(intent.command, intent.target)
+      } else {
+        logInfo(`[BFF]   no intent detected`)
+      }
+
+      // Step 2: Check for pre-recorded audio clip
       const clipKey = detectAudioClip(userText)
       if (clipKey) {
         const clip = AUDIO_CLIPS[clipKey]
@@ -287,7 +296,7 @@ export function handleMiniMaxProxy(clientWs) {
       }
       logInfo(`[BFF]   no pre-recorded clip matched`)
 
-      // Step 2: Mock reply（不调用任何大模型）
+      // Step 3: Mock reply（不调用任何大模型）
       notifyStatus('thinking', '正在思考...')
       logInfo(`[BFF]   → sent status:thinking`)
 
@@ -295,7 +304,7 @@ export function handleMiniMaxProxy(clientWs) {
 
       const mockReply = getMockReply(userText)
       logInfo(`[BFF]   mockReply="${mockReply.slice(0, 50)}..."`)
-      return processReply(mockReply)
+      return processReply(mockReply, intent)
 
     } catch (err) {
       logError('[BFF] ❌ processUserInput error:', err.message)
@@ -351,7 +360,8 @@ export function handleMiniMaxProxy(clientWs) {
   }
 
   // ── Process reply (MOCK MODE: 不调 T2A，前端用本地 TTS) ──
-  function processReply(replyText) {
+  // intent: pre-detected from user text in processUserInput (avoids double-detect from reply keywords)
+  function processReply(replyText, intent) {
     if (!replyText) {
       replyText = '抱歉，我没有理解您的意思。'
     }
@@ -361,16 +371,7 @@ export function handleMiniMaxProxy(clientWs) {
     logInfo(`[BFF] ═══ processReply START ═══`)
     logInfo(`[BFF]   replyText="${replyText.slice(0, 50)}..."`)
 
-    // Step 1: Detect intent
-    const intent = detectIntent(replyText)
-    if (intent) {
-      logInfo(`[BFF]   🎯 Intent: ${intent.command} -> ${intent.target}`)
-      sendCommand(intent.command, intent.target)
-    } else {
-      logInfo(`[BFF]   no intent detected`)
-    }
-
-    // Step 2: Send text to frontend (frontend uses local TTS)
+    // Step 1: Send text to frontend (frontend uses local TTS)
     sendToClient({ type: 'response.text.done', text: replyText })
     logInfo(`[BFF]   → sent response.text.done`)
 

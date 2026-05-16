@@ -33,8 +33,11 @@ const logError = (...args) => {
  * and sends via WebSocket as JSON { type: 'user.audio', audio: base64 }
  *
  * @param {Function} getSocket - Function that returns the current WebSocket instance
+ * @param {Object} options - Configuration options
+ * @param {Function} options.onAudioData - Callback with complete audio data when recording stops (base64 PCM)
  */
-export function useAudioRecorder(getSocket) {
+export function useAudioRecorder(getSocket, options = {}) {
+  const { onAudioData } = options
   const audioStore = useAudioStore()
   const avatarStore = useAvatarStore()
 
@@ -42,6 +45,7 @@ export function useAudioRecorder(getSocket) {
   let mediaStream = null
   let processor = null
   let workletRegistered = false
+  let pcmChunks = [] // 收集原始 PCM ArrayBuffer 用于百度识别
 
   const isInitialized = ref(false)
 
@@ -69,7 +73,7 @@ export function useAudioRecorder(getSocket) {
       audioStore.setPermission(true)
       audioStore.clearError()
       isInitialized.value = true
-      logInfo('[AudioRecorder] Initialized successfully')
+      logInfo('[AudioRecorder] Initialized successfully, AudioContext sampleRate:', audioContext.sampleRate)
       return true
     } catch (err) {
       logError('[AudioRecorder] Init error:', err)
@@ -109,6 +113,7 @@ export function useAudioRecorder(getSocket) {
       initScriptProcessor(source)
     }
 
+    pcmChunks = [] // 清空之前的录音数据
     audioStore.setRecording(true)
     avatarStore.setMicActive(true)
     logInfo('[AudioRecorder] Recording started')
@@ -131,13 +136,16 @@ export function useAudioRecorder(getSocket) {
       const level = (sum / inputData.length) * 5
       audioStore.setAudioLevel(level)
 
-      // VAD: skip sending if audio level is below threshold (silence)
-      const VAD_THRESHOLD = 0.01
-      if (level < VAD_THRESHOLD) return
-
-      // Convert to 16-bit PCM, then base64, send as JSON
+      // Convert to 16-bit PCM
       const pcmBuffer = floatTo16BitPCM(inputData)
+
+      // 保存原始 PCM 数据用于百度识别（避免 base64 拼接对齐问题）
+      // 不再使用VAD过滤，确保完整录音数据被保存
+      pcmChunks.push(pcmBuffer)
+
+      // base64 encode for WebSocket
       const base64 = arrayBufferToBase64(pcmBuffer)
+
       const ws = getSocket?.()
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'user.audio', audio: base64 }))
@@ -183,11 +191,14 @@ export function useAudioRecorder(getSocket) {
         const level = (sum / channelData.length) * 5
         audioStore.setAudioLevel(level)
 
-        // VAD: skip sending if audio level is below threshold (silence)
-        if (level < 0.01) return
-
         const pcmBuffer = floatTo16BitPCM(channelData)
+
+        // 保存原始 PCM 数据用于百度识别（避免 base64 拼接对齐问题）
+        // 不再使用VAD过滤，确保完整录音数据被保存
+        pcmChunks.push(pcmBuffer)
+
         const base64 = arrayBufferToBase64(pcmBuffer)
+
         const ws = getSocket?.()
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'user.audio', audio: base64 }))
@@ -211,7 +222,36 @@ export function useAudioRecorder(getSocket) {
     audioStore.setRecording(false)
     audioStore.setAudioLevel(0)
     avatarStore.setMicActive(false)
-    logInfo('[AudioRecorder] Recording stopped')
+
+    // 合并所有 PCM chunks 并回调
+    if (pcmChunks.length > 0 && onAudioData) {
+      // 合并多个 ArrayBuffer 为一个 Int16Array
+      let totalBytes = 0
+      for (const chunk of pcmChunks) totalBytes += chunk.byteLength
+      const merged = new Int16Array(totalBytes / 2)
+      let offset = 0
+      for (const chunk of pcmChunks) {
+        const src = new Int16Array(chunk)
+        merged.set(src, offset)
+        offset += src.length
+      }
+
+      // 获取 AudioContext 实际采样率（通常是 44100 或 48000）
+      const sourceRate = audioContext ? audioContext.sampleRate : 44100
+      // 百度语音识别仅支持 8000 和 16000，使用 8000 以减少数据量
+      const targetRate = 8000
+
+      // 使用线性插值从 sourceRate 重采样到 targetRate
+      const resampled = resample(merged, sourceRate, targetRate)
+
+      const combinedBase64 = arrayBufferToBase64(resampled.buffer)
+      logInfo('[AudioRecorder] 录音完成, sourceRate:', sourceRate, '→ targetRate:', targetRate,
+        '原始样本数:', merged.length, '重采样后:', resampled.length, 'bytes:', totalBytes)
+      onAudioData({ audio: combinedBase64, sampleRate: targetRate })
+      pcmChunks = []
+    } else {
+      logInfo('[AudioRecorder] Recording stopped (no audio data)')
+    }
   }
 
   function dispose() {
@@ -235,6 +275,23 @@ export function useAudioRecorder(getSocket) {
       view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true)
     }
     return buffer
+  }
+
+  /**
+   * 线性插值重采样：从 sourceRate 重采样到 targetRate（百度语音识别要求 8000Hz 或 16000Hz）
+   */
+  function resample(samples, sourceRate, targetRate) {
+    const ratio = sourceRate / targetRate
+    const outputLength = Math.floor(samples.length / ratio)
+    const output = new Int16Array(outputLength)
+    for (let i = 0; i < outputLength; i++) {
+      const srcIndex = i * ratio
+      const srcIndexFloor = Math.floor(srcIndex)
+      const srcIndexCeil = Math.min(srcIndexFloor + 1, samples.length - 1)
+      const t = srcIndex - srcIndexFloor
+      output[i] = Math.round(samples[srcIndexFloor] * (1 - t) + samples[srcIndexCeil] * t)
+    }
+    return output
   }
 
   function arrayBufferToBase64(buffer) {

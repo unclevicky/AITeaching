@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import { config } from './config.js'
 import { handleMiniMaxProxy } from './websocket/minimax-proxy.js'
+import speechRouter from './routes/speech.js'
 
 const LOG_DIR = path.resolve(import.meta.dirname, '../logs')
 
@@ -14,12 +15,15 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 const app = express()
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() })
 })
+
+// ── Speech recognition routes ──
+app.use('/api/speech', speechRouter)
 
 // ── Frontend log receiver ──
 app.post('/api/log', express.text({ type: '*/*' }), (req, res) => {

@@ -1,0 +1,75 @@
+<h2>🎯 设计方案汇总</h2>
+<p class="subtitle">以下是你已确认的所有设计决策，请做最终确认</p>
+
+<div class="section">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div style="background:rgba(0,60,120,0.15);border:1px solid rgba(0,180,255,0.25);border-radius:10px;padding:16px">
+      <h3 style="color:#00d4ff;margin-bottom:8px">🏗️ 技术栈</h3>
+      <ul style="color:#aaccdd;font-size:14px;line-height:1.8">
+        <li>Vue 3 + Vite</li>
+        <li>Pinia + Vue Router</li>
+        <li>Tailwind CSS (深色主题)</li>
+        <li>lottie-web (数字人动画)</li>
+        <li>ECharts (数据可视化)</li>
+        <li>Node.js + Express + ws (BFF)</li>
+        <li>Web Audio API (音频采集)</li>
+      </ul>
+    </div>
+    <div style="background:rgba(0,60,120,0.15);border:1px solid rgba(0,180,255,0.25);border-radius:10px;padding:16px">
+      <h3 style="color:#00d4ff;margin-bottom:8px">🎨 视觉风格</h3>
+      <ul style="color:#aaccdd;font-size:14px;line-height:1.8">
+        <li>深空蓝 · 医疗科技</li>
+        <li>深蓝/深青主色调</li>
+        <li>青色(cyan)高亮色</li>
+        <li>毛玻璃 (backdrop-blur)</li>
+        <li>微光边框 + CSS 过渡动画</li>
+        <li>全息投影风格数字人</li>
+      </ul>
+    </div>
+    <div style="background:rgba(0,60,120,0.15);border:1px solid rgba(0,180,255,0.25);border-radius:10px;padding:16px">
+      <h3 style="color:#00d4ff;margin-bottom:8px">📐 布局结构</h3>
+      <ul style="color:#aaccdd;font-size:14px;line-height:1.8">
+        <li>左侧玻璃拟态导航栏</li>
+        <li>主内容区占据剩余空间</li>
+        <li>Dashboard: 居中辐射式</li>
+        <li>中央圆形仪表盘 + 环绕卡片</li>
+        <li>数字人悬浮右下角 (fixed)</li>
+      </ul>
+    </div>
+    <div style="background:rgba(0,60,120,0.15);border:1px solid rgba(0,180,255,0.25);border-radius:10px;padding:16px">
+      <h3 style="color:#00d4ff;margin-bottom:8px">📄 页面路由</h3>
+      <ul style="color:#aaccdd;font-size:14px;line-height:1.8">
+        <li>/dashboard — 数字大屏</li>
+        <li>/diagnosis — 智能诊断</li>
+        <li>/presentation — PPT 展示</li>
+        <li>/exam — 随堂测试</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem;background:rgba(0,60,120,0.15);border:1px solid rgba(0,180,255,0.25);border-radius:10px;padding:16px">
+  <h3 style="color:#00d4ff;margin-bottom:8px">🤖 核心功能</h3>
+  <ul style="color:#aaccdd;font-size:14px;line-height:1.8">
+    <li><strong>全局悬浮数字人</strong> — IDLE/LISTENING/SPEAKING 三态切换，Lottie 动画 + 全息投影效果</li>
+    <li><strong>AI 语音交互</strong> — 麦克风采集 → BFF WebSocket → MiniMax S2S → 音频/文本回传</li>
+    <li><strong>意图拦截</strong> — 后端关键词正则匹配，触发路由跳转 + 数字人状态切换</li>
+    <li><strong>快捷键兜底</strong> — 所有语音操作均配备快捷键替代方案</li>
+    <li><strong>音频自动播放策略</strong> — "进入系统"按钮作为首次交互触发点</li>
+  </ul>
+</div>
+
+<div class="section" style="margin-top:1.5rem;background:rgba(0,100,60,0.1);border:1px solid rgba(0,200,150,0.2);border-radius:10px;padding:16px">
+  <h3 style="color:#00ccaa;margin-bottom:8px">⚡ 开发阶段 (5 步)</h3>
+  <ol style="color:#aaccdd;font-size:14px;line-height:2">
+    <li>工程初始化 — Vite + Vue3 + Tailwind + Router</li>
+    <li>数字人与 Lottie — GlobalAvatar 组件 + 三态切换</li>
+    <li>录音与权限 — useAudioRecorder 钩子</li>
+    <li>WebSocket 链路 — BFF + MiniMax S2S 完整闭环</li>
+    <li>页面内容填充 — 4 个路由页面的高端 UI 实现</li>
+  </ol>
+</div>
+
+<div style="margin-top:1.5rem;padding:12px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.2);border-radius:8px">
+  <p style="color:#ffcc66;font-size:14px">⚠️ <strong>注意：</strong>确认后我将生成完整设计文档并进入实施计划编写。如需调整任何决策，请现在告诉我。</p>
+</div>

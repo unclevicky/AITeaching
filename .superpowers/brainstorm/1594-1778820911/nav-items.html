@@ -1,0 +1,58 @@
+<h2>侧边导航菜单</h2>
+<p class="subtitle">确认导航栏需要包含哪些功能入口</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="dashboard" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>🏠 数字大屏</h3>
+      <p>/dashboard — ECharts 动态数据可视化，核心展示页面</p>
+    </div>
+  </div>
+  <div class="option" data-choice="diagnosis" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>🔬 智能诊断</h3>
+      <p>/diagnosis — CT 影像拖拽上传 + 诊断结果流式输出</p>
+    </div>
+  </div>
+  <div class="option" data-choice="presentation" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>📊 PPT 展示</h3>
+      <p>/presentation — 高清演示图片轮播组件</p>
+    </div>
+  </div>
+  <div class="option" data-choice="exam" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>📝 随堂测试</h3>
+      <p>/exam — 扫码参与 + 实时统计大屏 UI</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem;text-align:center">
+  <div style="display:inline-block;background:linear-gradient(135deg,#040d1a,#0a1628);border:1px solid #1a4a7a;border-radius:12px;padding:12px 24px;text-align:left;position:relative;overflow:hidden">
+    <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,180,255,0.03),transparent)"></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,180,255,0.1);position:relative">
+      <span style="color:#00d4ff;font-size:16px">🏠</span>
+      <span style="color:#00d4ff;font-size:14px;font-weight:600">数字大屏</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,180,255,0.1);position:relative">
+      <span style="color:#667788;font-size:16px">🔬</span>
+      <span style="color:#667788;font-size:14px">智能诊断</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,180,255,0.1);position:relative">
+      <span style="color:#667788;font-size:16px">📊</span>
+      <span style="color:#667788;font-size:14px">PPT 展示</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;position:relative">
+      <span style="color:#667788;font-size:16px">📝</span>
+      <span style="color:#667788;font-size:14px">随堂测试</span>
+    </div>
+  </div>
+  <p style="margin-top:8px;font-size:13px;color:#8899aa">导航栏效果预览</p>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">以上 4 个菜单项是需求中定义的全部页面。请全部确认（多选），或告诉我想增减哪些。</p>
